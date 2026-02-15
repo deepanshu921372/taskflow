@@ -9,6 +9,7 @@ const http = require('http');
 const connectDB = require('./config/db');
 const { validateEnv } = require('./config/env');
 const errorHandler = require('./middleware/errorHandler');
+const { initSocket } = require('./socket');
 
 // Validate environment variables
 validateEnv();
@@ -18,6 +19,9 @@ connectDB();
 
 const app = express();
 const server = http.createServer(app);
+
+// Initialize Socket.IO
+initSocket(server);
 
 // Middleware
 app.use(helmet());
