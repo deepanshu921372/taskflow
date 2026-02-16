@@ -3,6 +3,7 @@ const List = require('../models/List');
 const ApiResponse = require('../utils/apiResponse');
 const AppError = require('../utils/AppError');
 const { logActivity } = require('../services/activity.service');
+const { emitTaskCreated, emitTaskUpdated, emitTaskMoved, emitTaskDeleted } = require('../services/socket.service');
 
 exports.getTasks = async (req, res, next) => {
   try {
@@ -73,6 +74,8 @@ exports.createTask = async (req, res, next) => {
       entityTitle: task.title,
     });
 
+    emitTaskCreated(list.board.toString(), task);
+
     ApiResponse.created(res, { task });
   } catch (error) {
     next(error);
@@ -108,6 +111,8 @@ exports.updateTask = async (req, res, next) => {
       entityTitle: task.title,
     });
 
+    emitTaskUpdated(task.board.toString(), task);
+
     ApiResponse.success(res, { task });
   } catch (error) {
     next(error);
@@ -131,7 +136,12 @@ exports.deleteTask = async (req, res, next) => {
       entityTitle: task.title,
     });
 
+    const boardId = task.board.toString();
+    const listId = task.list.toString();
+
     await Task.findByIdAndDelete(task._id);
+
+    emitTaskDeleted(boardId, task._id, listId);
 
     ApiResponse.success(res, { message: 'Task deleted successfully' });
   } catch (error) {
@@ -170,6 +180,8 @@ exports.moveTask = async (req, res, next) => {
     });
 
     await task.populate('assignees', 'name email');
+
+    emitTaskMoved(task.board.toString(), task, oldListId.toString(), targetListId);
 
     ApiResponse.success(res, { task });
   } catch (error) {
