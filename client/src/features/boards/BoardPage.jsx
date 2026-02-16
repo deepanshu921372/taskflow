@@ -9,11 +9,13 @@ import TaskCard from '../tasks/TaskCard';
 import TaskModal from '../tasks/TaskModal';
 import Navbar from '../../components/Layout/Navbar';
 import Spinner from '../../components/common/Spinner';
+import useSocket from '../../hooks/useSocket';
 import toast from 'react-hot-toast';
 
 const BoardPage = () => {
   const { id } = useParams();
   const { data, isLoading } = useGetBoardQuery(id);
+  useSocket(id); // Enable real-time updates
   const [createList, { isLoading: creatingList }] = useCreateListMutation();
   const [moveTask] = useMoveTaskMutation();
 
