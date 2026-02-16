@@ -1,5 +1,5 @@
 const Activity = require('../models/Activity');
-const ApiResponse = require('../utils/apiResponse');
+const { sendPaginated } = require('../utils/apiResponse');
 
 exports.getActivities = async (req, res, next) => {
   try {
@@ -7,19 +7,19 @@ exports.getActivities = async (req, res, next) => {
     const boardId = req.params.boardId;
 
     const query = { board: boardId };
-    if (action) {
-      query.action = action;
-    }
+    if (action) query.action = action;
 
-    const total = await Activity.countDocuments(query);
-    const activities = await Activity.find(query)
-      .populate('user', 'name email')
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
+    const [total, activities] = await Promise.all([
+      Activity.countDocuments(query),
+      Activity.find(query)
+        .populate('user', 'name email')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(+limit)
+    ]);
 
-    ApiResponse.paginated(res, activities, page, limit, total);
-  } catch (error) {
-    next(error);
+    sendPaginated(res, activities, { page, limit, total });
+  } catch (err) {
+    next(err);
   }
 };

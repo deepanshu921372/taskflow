@@ -25,7 +25,7 @@ const ListColumn = ({ list, tasks, onTaskClick }) => {
       await createTask({ listId: list._id, title: taskTitle }).unwrap();
       setTaskTitle('');
       setShowAddTask(false);
-    } catch (error) {
+    } catch {
       toast.error('Failed to add task');
     }
   };
@@ -35,14 +35,13 @@ const ListColumn = ({ list, tasks, onTaskClick }) => {
     try {
       await deleteList(list._id).unwrap();
       toast.success('List deleted');
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete list');
     }
   };
 
   return (
     <div className="w-72 sm:w-80 flex-shrink-0 bg-white rounded-xl shadow-sm flex flex-col max-h-[calc(100vh-180px)]">
-      {/* Header */}
       <div className="flex justify-between items-center p-4 border-b border-gray-100">
         <h3 className="font-medium text-gray-800 text-sm">{list.title}</h3>
         <div className="relative">
@@ -73,7 +72,6 @@ const ListColumn = ({ list, tasks, onTaskClick }) => {
         </div>
       </div>
 
-      {/* Tasks */}
       <div
         ref={setNodeRef}
         className={`flex-1 overflow-y-auto p-3 space-y-2 ${
@@ -91,7 +89,6 @@ const ListColumn = ({ list, tasks, onTaskClick }) => {
         )}
       </div>
 
-      {/* Add Task */}
       <div className="p-3 border-t border-gray-100">
         {showAddTask ? (
           <form onSubmit={handleAddTask}>

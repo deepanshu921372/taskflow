@@ -1,16 +1,15 @@
 const List = require('../models/List');
 const Task = require('../models/Task');
-const Board = require('../models/Board');
-const ApiResponse = require('../utils/apiResponse');
+const { send } = require('../utils/apiResponse');
 const AppError = require('../utils/AppError');
 const { logActivity } = require('../services/activity.service');
 
 exports.getLists = async (req, res, next) => {
   try {
-    const lists = await List.find({ board: req.params.boardId }).sort({ position: 1 });
-    ApiResponse.success(res, { lists });
-  } catch (error) {
-    next(error);
+    const lists = await List.find({ board: req.params.boardId }).sort('position');
+    send(res, 200, { lists });
+  } catch (err) {
+    next(err);
   }
 };
 
@@ -20,84 +19,67 @@ exports.createList = async (req, res, next) => {
     const boardId = req.params.boardId;
 
     const lastList = await List.findOne({ board: boardId }).sort({ position: -1 });
-    const position = lastList ? lastList.position + 1 : 0;
 
     const list = await List.create({
       title,
       board: boardId,
-      position,
+      position: lastList ? lastList.position + 1 : 0
     });
 
-    await logActivity({
-      user: req.user._id,
-      board: boardId,
-      action: 'created',
-      entityType: 'list',
-      entityId: list._id,
-      entityTitle: list.title,
+    logActivity({
+      user: req.user._id, board: boardId,
+      action: 'created', entityType: 'list',
+      entityId: list._id, entityTitle: list.title
     });
 
-    ApiResponse.created(res, { list });
-  } catch (error) {
-    next(error);
+    send(res, 201, { list });
+  } catch (err) {
+    next(err);
   }
 };
 
 exports.updateList = async (req, res, next) => {
   try {
     const { title, position } = req.body;
-    const updates = {};
 
-    if (title !== undefined) updates.title = title;
-    if (position !== undefined) updates.position = position;
+    const list = await List.findByIdAndUpdate(
+      req.params.id,
+      { ...(title !== undefined && { title }), ...(position !== undefined && { position }) },
+      { new: true, runValidators: true }
+    );
 
-    const list = await List.findByIdAndUpdate(req.params.id, updates, {
-      new: true,
-      runValidators: true,
+    if (!list) throw AppError.notFound('List not found');
+
+    logActivity({
+      user: req.user._id, board: list.board,
+      action: 'updated', entityType: 'list',
+      entityId: list._id, entityTitle: list.title
     });
 
-    if (!list) {
-      throw AppError.notFound('List not found');
-    }
-
-    await logActivity({
-      user: req.user._id,
-      board: list.board,
-      action: 'updated',
-      entityType: 'list',
-      entityId: list._id,
-      entityTitle: list.title,
-    });
-
-    ApiResponse.success(res, { list });
-  } catch (error) {
-    next(error);
+    send(res, 200, { list });
+  } catch (err) {
+    next(err);
   }
 };
 
 exports.deleteList = async (req, res, next) => {
   try {
     const list = await List.findById(req.params.id);
+    if (!list) throw AppError.notFound('List not found');
 
-    if (!list) {
-      throw AppError.notFound('List not found');
-    }
-
+    // delete tasks first then the list
     await Task.deleteMany({ list: list._id });
-    await List.findByIdAndDelete(list._id);
+    await list.deleteOne();
 
-    await logActivity({
-      user: req.user._id,
-      board: list.board,
-      action: 'deleted',
-      entityType: 'list',
-      entityId: list._id,
-      entityTitle: list.title,
+    logActivity({
+      user: req.user._id, board: list.board,
+      action: 'deleted', entityType: 'list',
+      entityId: list._id, entityTitle: list.title
     });
 
-    ApiResponse.success(res, { message: 'List deleted successfully' });
-  } catch (error) {
-    next(error);
+    send(res, 200, { message: 'List deleted' });
+  } catch (err) {
+    next(err);
   }
 };
 
@@ -105,16 +87,13 @@ exports.reorderLists = async (req, res, next) => {
   try {
     const { boardId, listIds } = req.body;
 
-    const updates = listIds.map((id, index) =>
-      List.findByIdAndUpdate(id, { position: index })
+    await Promise.all(
+      listIds.map((id, i) => List.findByIdAndUpdate(id, { position: i }))
     );
 
-    await Promise.all(updates);
-
-    const lists = await List.find({ board: boardId }).sort({ position: 1 });
-
-    ApiResponse.success(res, { lists });
-  } catch (error) {
-    next(error);
+    const lists = await List.find({ board: boardId }).sort('position');
+    send(res, 200, { lists });
+  } catch (err) {
+    next(err);
   }
 };

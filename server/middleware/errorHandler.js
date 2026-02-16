@@ -1,55 +1,40 @@
 const errorHandler = (err, req, res, next) => {
-  let error = { ...err };
-  error.message = err.message;
+  let statusCode = err.statusCode || 500;
+  let message = err.message;
 
-  // Log error for debugging
   if (process.env.NODE_ENV === 'development') {
     console.error(err);
   }
 
-  // Mongoose bad ObjectId
+  // mongo invalid id
   if (err.name === 'CastError') {
-    error.message = 'Resource not found';
-    error.statusCode = 404;
-    error.code = 'NOT_FOUND';
+    statusCode = 404;
+    message = 'Not found';
   }
 
-  // Mongoose duplicate key
+  // duplicate key
   if (err.code === 11000) {
+    statusCode = 409;
     const field = Object.keys(err.keyValue)[0];
-    error.message = `${field.charAt(0).toUpperCase() + field.slice(1)} already exists`;
-    error.statusCode = 409;
-    error.code = 'DUPLICATE';
+    message = `${field} already taken`;
   }
 
-  // Mongoose validation error
+  // validation
   if (err.name === 'ValidationError') {
-    const messages = Object.values(err.errors).map(val => val.message);
-    error.message = messages.join(', ');
-    error.statusCode = 400;
-    error.code = 'VALIDATION_ERROR';
+    statusCode = 400;
+    message = Object.values(err.errors).map(e => e.message).join(', ');
   }
 
-  // JWT errors
-  if (err.name === 'JsonWebTokenError') {
-    error.message = 'Invalid token';
-    error.statusCode = 401;
-    error.code = 'UNAUTHORIZED';
+  // jwt
+  if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+    statusCode = 401;
+    message = err.name === 'TokenExpiredError' ? 'Token expired' : 'Invalid token';
   }
 
-  if (err.name === 'TokenExpiredError') {
-    error.message = 'Token expired';
-    error.statusCode = 401;
-    error.code = 'UNAUTHORIZED';
-  }
-
-  res.status(error.statusCode || 500).json({
+  res.status(statusCode).json({
     success: false,
-    error: {
-      message: error.message || 'Server Error',
-      code: error.code || 'SERVER_ERROR',
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    }
+    error: message || 'Something went wrong',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
 };
 
