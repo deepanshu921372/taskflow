@@ -2,31 +2,37 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { Toaster } from 'react-hot-toast';
 import { store } from './store';
+import LoginPage from './features/auth/LoginPage';
+import RegisterPage from './features/auth/RegisterPage';
+import DashboardPage from './features/boards/DashboardPage';
+import BoardPage from './features/boards/BoardPage';
+import ProtectedRoute from './components/common/ProtectedRoute';
 
 function App() {
   return (
     <Provider store={store}>
       <Router>
-        <div className="min-h-screen bg-gray-50">
-          <Routes>
-            <Route path="/" element={
-              <div className="flex items-center justify-center min-h-screen">
-                <div className="text-center">
-                  <h1 className="text-4xl font-bold text-primary-600 mb-4">
-                    TaskFlow
-                  </h1>
-                  <p className="text-gray-600">
-                    Real-Time Task Collaboration Platform
-                  </p>
-                  <p className="text-sm text-gray-400 mt-4">
-                    Coming soon...
-                  </p>
-                </div>
-              </div>
-            } />
-          </Routes>
-          <Toaster position="top-right" />
-        </div>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/boards/:id"
+            element={
+              <ProtectedRoute>
+                <BoardPage />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+        <Toaster position="top-right" />
       </Router>
     </Provider>
   );
