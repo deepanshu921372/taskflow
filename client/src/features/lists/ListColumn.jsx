@@ -2,15 +2,15 @@ import { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import TaskCard from '../tasks/TaskCard';
-import { useCreateTaskMutation, useDeleteListMutation } from '../tasks/taskApi';
-import { useDeleteListMutation as useDeleteList } from './listApi';
+import { useCreateTaskMutation } from '../tasks/taskApi';
+import { useDeleteListMutation } from './listApi';
 import toast from 'react-hot-toast';
 
 const ListColumn = ({ list, tasks, onTaskClick }) => {
   const [showAddTask, setShowAddTask] = useState(false);
   const [taskTitle, setTaskTitle] = useState('');
   const [createTask, { isLoading }] = useCreateTaskMutation();
-  const [deleteList] = useDeleteList();
+  const [deleteList] = useDeleteListMutation();
 
   const { setNodeRef, isOver } = useDroppable({
     id: list._id,
