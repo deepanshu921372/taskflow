@@ -1,49 +1,17 @@
-class ApiResponse {
-  static success(res, data, statusCode = 200, pagination = null) {
-    const response = {
-      success: true,
-      data
-    };
+// helper to keep response format consistent
+const send = (res, status, data) => res.status(status).json({ success: true, data });
 
-    if (pagination) {
-      response.pagination = pagination;
-    }
-
-    return res.status(statusCode).json(response);
-  }
-
-  static error(res, message, statusCode = 500, code = 'SERVER_ERROR', details = null) {
-    const response = {
-      success: false,
-      error: {
-        message,
-        code
-      }
-    };
-
-    if (details) {
-      response.error.details = details;
-    }
-
-    return res.status(statusCode).json(response);
-  }
-
-  static created(res, data) {
-    return this.success(res, data, 201);
-  }
-
-  static noContent(res) {
-    return res.status(204).send();
-  }
-
-  static paginated(res, data, page, limit, total) {
-    return this.success(res, data, 200, {
-      page: parseInt(page),
-      limit: parseInt(limit),
+const sendPaginated = (res, data, { page, limit, total }) => {
+  res.status(200).json({
+    success: true,
+    data,
+    pagination: {
+      page: Number(page),
+      limit: Number(limit),
       total,
       pages: Math.ceil(total / limit)
-    });
-  }
-}
+    }
+  });
+};
 
-module.exports = ApiResponse;
+module.exports = { send, sendPaginated };

@@ -7,6 +7,7 @@ import { useMoveTaskMutation } from '../tasks/taskApi';
 import ListColumn from '../lists/ListColumn';
 import TaskCard from '../tasks/TaskCard';
 import TaskModal from '../tasks/TaskModal';
+import ActivityPanel from '../activity/ActivityPanel';
 import Spinner from '../../components/common/Spinner';
 import useSocket from '../../hooks/useSocket';
 import toast from 'react-hot-toast';
@@ -22,14 +23,27 @@ const BoardPage = () => {
   const [listTitle, setListTitle] = useState('');
   const [selectedTask, setSelectedTask] = useState(null);
   const [activeTask, setActiveTask] = useState(null);
+  const [showActivity, setShowActivity] = useState(false);
+  const [priorityFilter, setPriorityFilter] = useState('all');
 
   const board = data?.data?.board;
   const lists = data?.data?.lists || [];
   const tasks = data?.data?.tasks || [];
 
   const getTasksForList = (listId) => {
-    return tasks.filter((t) => t.list === listId).sort((a, b) => a.position - b.position);
+    return tasks
+      .filter((t) => t.list === listId)
+      .filter((t) => priorityFilter === 'all' || t.priority === priorityFilter)
+      .sort((a, b) => a.position - b.position);
   };
+
+  const PRIORITY_OPTIONS = [
+    { value: 'all', label: 'All', color: 'bg-gray-100 text-gray-700' },
+    { value: 'urgent', label: 'Urgent', color: 'bg-red-100 text-red-700' },
+    { value: 'high', label: 'High', color: 'bg-orange-100 text-orange-700' },
+    { value: 'medium', label: 'Medium', color: 'bg-yellow-100 text-yellow-700' },
+    { value: 'low', label: 'Low', color: 'bg-green-100 text-green-700' },
+  ];
 
   const handleAddList = async (e) => {
     e.preventDefault();
@@ -40,7 +54,7 @@ const BoardPage = () => {
       setListTitle('');
       setShowAddList(false);
       toast.success('List created!');
-    } catch (error) {
+    } catch {
       toast.error('Failed to create list');
     }
   };
@@ -78,7 +92,7 @@ const BoardPage = () => {
 
     try {
       await moveTask({ id: taskId, targetListId, position }).unwrap();
-    } catch (error) {
+    } catch {
       toast.error('Failed to move task');
     }
   };
@@ -104,7 +118,6 @@ const BoardPage = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-100">
-      {/* Header */}
       <header
         className="px-4 py-4 sm:px-6"
         style={{ backgroundColor: board.background || '#1B4F72' }}
@@ -124,7 +137,7 @@ const BoardPage = () => {
               {board.title}
             </h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <div className="hidden sm:flex -space-x-2">
               {board.members?.slice(0, 4).map((member) => (
                 <div
@@ -139,11 +152,51 @@ const BoardPage = () => {
             {board.members?.length > 4 && (
               <span className="text-white/70 text-sm">+{board.members.length - 4}</span>
             )}
+            <button
+              onClick={() => setShowActivity(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors text-sm font-medium"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="hidden sm:inline">Activity</span>
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Board Content */}
+      <div className="px-4 py-3 sm:px-6 bg-white border-b border-gray-200">
+        <div className="flex items-center gap-2 overflow-x-auto">
+          <span className="text-sm text-gray-500 flex-shrink-0">Filter by priority:</span>
+          <div className="flex gap-1.5">
+            {PRIORITY_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setPriorityFilter(option.value)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                  priorityFilter === option.value
+                    ? `${option.color} ring-2 ring-offset-1 ring-primary-500`
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          {priorityFilter !== 'all' && (
+            <button
+              onClick={() => setPriorityFilter('all')}
+              className="ml-2 text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
+
       <DndContext
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
@@ -160,7 +213,6 @@ const BoardPage = () => {
               />
             ))}
 
-            {/* Add List */}
             <div className="w-72 sm:w-80 flex-shrink-0">
               {showAddList ? (
                 <form onSubmit={handleAddList} className="bg-white rounded-xl p-4 shadow-sm">
@@ -213,8 +265,14 @@ const BoardPage = () => {
       </DndContext>
 
       {selectedTask && (
-        <TaskModal task={selectedTask} onClose={() => setSelectedTask(null)} />
+        <TaskModal task={selectedTask} onClose={() => setSelectedTask(null)} boardMembers={board.members} />
       )}
+
+      <ActivityPanel
+        boardId={id}
+        isOpen={showActivity}
+        onClose={() => setShowActivity(false)}
+      />
     </div>
   );
 };

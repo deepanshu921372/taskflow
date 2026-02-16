@@ -1,35 +1,29 @@
 class AppError extends Error {
-  constructor(message, statusCode, code) {
+  constructor(message, statusCode) {
     super(message);
     this.statusCode = statusCode;
-    this.code = code;
     this.isOperational = true;
-
     Error.captureStackTrace(this, this.constructor);
   }
 
-  static badRequest(message = 'Bad request') {
-    return new AppError(message, 400, 'VALIDATION_ERROR');
+  static badRequest(msg) {
+    return new AppError(msg || 'Bad request', 400);
   }
 
-  static unauthorized(message = 'Unauthorized') {
-    return new AppError(message, 401, 'UNAUTHORIZED');
+  static unauthorized(msg) {
+    return new AppError(msg || 'Unauthorized', 401);
   }
 
-  static forbidden(message = 'Forbidden') {
-    return new AppError(message, 403, 'FORBIDDEN');
+  static forbidden(msg) {
+    return new AppError(msg || 'Access denied', 403);
   }
 
-  static notFound(message = 'Resource not found') {
-    return new AppError(message, 404, 'NOT_FOUND');
+  static notFound(msg) {
+    return new AppError(msg || 'Not found', 404);
   }
 
-  static conflict(message = 'Resource already exists') {
-    return new AppError(message, 409, 'DUPLICATE');
-  }
-
-  static tooMany(message = 'Too many requests') {
-    return new AppError(message, 429, 'RATE_LIMIT');
+  static conflict(msg) {
+    return new AppError(msg || 'Already exists', 409);
   }
 }
 

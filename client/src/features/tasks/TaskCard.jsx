@@ -1,11 +1,11 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-const priorityConfig = {
-  low: { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400' },
-  medium: { bg: 'bg-blue-50', text: 'text-blue-600', dot: 'bg-blue-400' },
-  high: { bg: 'bg-amber-50', text: 'text-amber-600', dot: 'bg-amber-400' },
-  urgent: { bg: 'bg-red-50', text: 'text-red-600', dot: 'bg-red-400' },
+const priorityStyles = {
+  low: 'bg-slate-100 text-slate-600',
+  medium: 'bg-blue-50 text-blue-600',
+  high: 'bg-amber-50 text-amber-600',
+  urgent: 'bg-red-50 text-red-600'
 };
 
 const TaskCard = ({ task, onClick }) => {
@@ -23,7 +23,7 @@ const TaskCard = ({ task, onClick }) => {
     transition,
   };
 
-  const priority = priorityConfig[task.priority] || priorityConfig.medium;
+  const prioClass = priorityStyles[task.priority] || priorityStyles.medium;
 
   const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
 
@@ -44,8 +44,7 @@ const TaskCard = ({ task, onClick }) => {
 
       <div className="flex items-center gap-2 flex-wrap">
         {task.priority && (
-          <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${priority.bg} ${priority.text}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${priority.dot}`} />
+          <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${prioClass}`}>
             {task.priority}
           </span>
         )}

@@ -1,22 +1,20 @@
 const User = require('../models/User');
-const ApiResponse = require('../utils/apiResponse');
+const { send } = require('../utils/apiResponse');
 const AppError = require('../utils/AppError');
 
 exports.register = async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      throw AppError.conflict('Email already registered');
-    }
+    const exists = await User.findOne({ email });
+    if (exists) throw AppError.conflict('Email already registered');
 
     const user = await User.create({ name, email, password });
     const token = user.generateToken();
 
-    ApiResponse.created(res, { user, token });
-  } catch (error) {
-    next(error);
+    send(res, 201, { user, token });
+  } catch (err) {
+    next(err);
   }
 };
 
@@ -25,46 +23,30 @@ exports.login = async (req, res, next) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email }).select('+password');
-    if (!user) {
-      throw AppError.unauthorized('Invalid email or password');
+    if (!user || !(await user.comparePassword(password))) {
+      throw AppError.unauthorized('Invalid credentials');
     }
 
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      throw AppError.unauthorized('Invalid email or password');
-    }
-
-    const token = user.generateToken();
-
-    ApiResponse.success(res, { user, token });
-  } catch (error) {
-    next(error);
+    send(res, 200, { user, token: user.generateToken() });
+  } catch (err) {
+    next(err);
   }
 };
 
-exports.getMe = async (req, res, next) => {
-  try {
-    ApiResponse.success(res, { user: req.user });
-  } catch (error) {
-    next(error);
-  }
+exports.getMe = (req, res) => {
+  send(res, 200, { user: req.user });
 };
 
 exports.updateMe = async (req, res, next) => {
   try {
     const { name, avatar } = req.body;
-    const updates = {};
-
-    if (name) updates.name = name;
-    if (avatar) updates.avatar = avatar;
-
-    const user = await User.findByIdAndUpdate(req.user._id, updates, {
-      new: true,
-      runValidators: true,
-    });
-
-    ApiResponse.success(res, { user });
-  } catch (error) {
-    next(error);
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { ...(name && { name }), ...(avatar && { avatar }) },
+      { new: true, runValidators: true }
+    );
+    send(res, 200, { user });
+  } catch (err) {
+    next(err);
   }
 };
