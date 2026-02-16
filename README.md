@@ -11,10 +11,18 @@ Real-Time Task Collaboration Platform - A lightweight Trello/Notion hybrid with 
 - JWT Authentication
 
 ### Frontend
-- React 18 with Vite
+- React 19 with Vite
 - Redux Toolkit + RTK Query
 - Tailwind CSS
 - @dnd-kit for drag-and-drop
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Architecture](./docs/ARCHITECTURE.md) | System design, data flow, scalability |
+| [API Documentation](./docs/API.md) | Complete API reference |
+| [Database Schema](./docs/DATABASE_SCHEMA.md) | Collections, relationships, indexes |
 
 ## Project Structure
 
@@ -38,6 +46,10 @@ taskflow/
 │   ├── services/           # Business logic
 │   ├── socket/             # Socket.IO setup
 │   └── package.json
+├── docs/                   # Documentation
+│   ├── ARCHITECTURE.md
+│   ├── API.md
+│   └── DATABASE_SCHEMA.md
 └── README.md
 ```
 
@@ -74,7 +86,14 @@ cp .env.example .env
 # Edit .env if needed
 ```
 
-### 4. Run Development Servers
+### 4. Seed Demo Data (Optional)
+
+```bash
+cd server
+npm run seed
+```
+
+### 5. Run Development Servers
 
 **Terminal 1 - Backend:**
 ```bash
@@ -88,11 +107,30 @@ cd client
 npm run dev
 ```
 
-### 5. Access the Application
+### 6. Access the Application
 
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:3008
 - Health Check: http://localhost:3008/api/health
+
+## Running Tests
+
+### Backend Tests
+
+```bash
+cd server
+npm install mongodb-memory-server --save-dev  # First time only
+npm test                 # Run all tests
+npm run test:watch       # Watch mode
+```
+
+### Frontend Tests
+
+```bash
+cd client
+npm test                 # Run all tests
+npm run test:coverage    # With coverage report
+```
 
 ## Environment Variables
 
@@ -122,6 +160,7 @@ VITE_SOCKET_URL=http://localhost:3008
 
 ## Features
 
+### Core Features
 - User authentication (signup/login)
 - Create and manage boards
 - Create lists within boards
@@ -130,36 +169,58 @@ VITE_SOCKET_URL=http://localhost:3008
 - Assign users to tasks
 - Real-time updates across users
 - Activity history tracking
-- Search and pagination
+- Search and filter functionality
 
-## API Documentation
+### Technical Features
+- JWT-based authentication with secure password hashing
+- WebSocket real-time sync with room-based isolation
+- RTK Query for efficient data fetching and caching
+- Responsive design with Tailwind CSS
+- Comprehensive test coverage
+
+## API Overview
 
 Base URL: `/api/v1`
 
-### Authentication
-- `POST /auth/register` - Register new user
-- `POST /auth/login` - Login user
-- `GET /auth/me` - Get current user
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/auth/register` | POST | Register new user |
+| `/auth/login` | POST | Login user |
+| `/auth/me` | GET | Get current user |
+| `/boards` | GET/POST | List/Create boards |
+| `/boards/:id` | GET/PUT/DELETE | Board CRUD |
+| `/boards/:id/members` | POST/DELETE | Manage members |
+| `/boards/:boardId/lists` | GET/POST | List management |
+| `/lists/:listId/tasks` | GET/POST | Task management |
+| `/tasks/:id` | GET/PUT/DELETE | Task CRUD |
+| `/tasks/:id/move` | PATCH | Move task |
+| `/tasks/:id/assign` | POST/DELETE | Task assignment |
+| `/boards/:boardId/activities` | GET | Activity history |
 
-### Boards
-- `GET /boards` - List user boards
-- `POST /boards` - Create board
-- `GET /boards/:id` - Get board details
-- `PUT /boards/:id` - Update board
-- `DELETE /boards/:id` - Delete board
+For complete API documentation, see [docs/API.md](./docs/API.md).
 
-### Lists
-- `GET /boards/:boardId/lists` - Get lists
-- `POST /boards/:boardId/lists` - Create list
-- `PUT /lists/:id` - Update list
-- `DELETE /lists/:id` - Delete list
+## Assumptions & Trade-offs
 
-### Tasks
-- `GET /lists/:listId/tasks` - Get tasks
-- `POST /lists/:listId/tasks` - Create task
-- `PUT /tasks/:id` - Update task
-- `DELETE /tasks/:id` - Delete task
-- `PATCH /tasks/:id/move` - Move task
+### Assumptions
+1. Users have modern browsers with WebSocket support
+2. MongoDB is available (local or cloud)
+3. Single server deployment initially
+4. Board membership is required to access any board data
+
+### Trade-offs
+1. **Soft delete not implemented** - Data is permanently deleted for simplicity
+2. **No file attachments** - Focused on core task management
+3. **Simple text search** - MongoDB text search instead of Elasticsearch
+4. **No email notifications** - Real-time updates are primary notification method
+5. **No offline support** - Requires active connection for updates
+
+### Future Improvements
+- Redis caching for performance
+- Elasticsearch for advanced search
+- File attachments with S3
+- Email notifications
+- Offline support with service workers
+- Rate limiting for API protection
 
 ## License
 

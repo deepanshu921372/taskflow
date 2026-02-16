@@ -1,44 +1,38 @@
 const Task = require('../models/Task');
 const List = require('../models/List');
-const ApiResponse = require('../utils/apiResponse');
+const { send, sendPaginated } = require('../utils/apiResponse');
 const AppError = require('../utils/AppError');
 const { logActivity } = require('../services/activity.service');
 const { emitTaskCreated, emitTaskUpdated, emitTaskMoved, emitTaskDeleted } = require('../services/socket.service');
 
 exports.getTasks = async (req, res, next) => {
   try {
-    const { page = 1, limit = 50, search = '' } = req.query;
-    const listId = req.params.listId;
+    const { page = 1, limit = 50, search } = req.query;
+    const query = { list: req.params.listId };
+    if (search) query.$text = { $search: search };
 
-    const query = { list: listId };
-    if (search) {
-      query.$text = { $search: search };
-    }
+    const [total, tasks] = await Promise.all([
+      Task.countDocuments(query),
+      Task.find(query)
+        .populate('assignees', 'name email')
+        .sort('position')
+        .skip((page - 1) * limit)
+        .limit(+limit)
+    ]);
 
-    const total = await Task.countDocuments(query);
-    const tasks = await Task.find(query)
-      .populate('assignees', 'name email')
-      .sort({ position: 1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
-
-    ApiResponse.paginated(res, tasks, page, limit, total);
-  } catch (error) {
-    next(error);
+    sendPaginated(res, tasks, { page, limit, total });
+  } catch (err) {
+    next(err);
   }
 };
 
 exports.getTask = async (req, res, next) => {
   try {
     const task = await Task.findById(req.params.id).populate('assignees', 'name email');
-
-    if (!task) {
-      throw AppError.notFound('Task not found');
-    }
-
-    ApiResponse.success(res, { task });
-  } catch (error) {
-    next(error);
+    if (!task) throw AppError.notFound('Task not found');
+    send(res, 200, { task });
+  } catch (err) {
+    next(err);
   }
 };
 
@@ -48,203 +42,159 @@ exports.createTask = async (req, res, next) => {
     const listId = req.params.listId;
 
     const list = await List.findById(listId);
-    if (!list) {
-      throw AppError.notFound('List not found');
-    }
+    if (!list) throw AppError.notFound('List not found');
 
+    // get next position
     const lastTask = await Task.findOne({ list: listId }).sort({ position: -1 });
-    const position = lastTask ? lastTask.position + 1 : 0;
 
     const task = await Task.create({
-      title,
-      description,
-      priority,
-      dueDate,
+      title, description, priority, dueDate,
       list: listId,
       board: list.board,
-      position,
+      position: lastTask ? lastTask.position + 1 : 0
     });
 
-    await logActivity({
-      user: req.user._id,
-      board: list.board,
-      action: 'created',
-      entityType: 'task',
-      entityId: task._id,
-      entityTitle: task.title,
+    logActivity({
+      user: req.user._id, board: list.board,
+      action: 'created', entityType: 'task',
+      entityId: task._id, entityTitle: task.title
     });
 
     emitTaskCreated(list.board.toString(), task);
-
-    ApiResponse.created(res, { task });
-  } catch (error) {
-    next(error);
+    send(res, 201, { task });
+  } catch (err) {
+    next(err);
   }
 };
 
 exports.updateTask = async (req, res, next) => {
   try {
     const { title, description, priority, dueDate, labels } = req.body;
-    const updates = {};
 
-    if (title !== undefined) updates.title = title;
-    if (description !== undefined) updates.description = description;
-    if (priority !== undefined) updates.priority = priority;
-    if (dueDate !== undefined) updates.dueDate = dueDate;
-    if (labels !== undefined) updates.labels = labels;
+    const task = await Task.findByIdAndUpdate(
+      req.params.id,
+      {
+        ...(title !== undefined && { title }),
+        ...(description !== undefined && { description }),
+        ...(priority !== undefined && { priority }),
+        ...(dueDate !== undefined && { dueDate }),
+        ...(labels !== undefined && { labels })
+      },
+      { new: true, runValidators: true }
+    ).populate('assignees', 'name email');
 
-    const task = await Task.findByIdAndUpdate(req.params.id, updates, {
-      new: true,
-      runValidators: true,
-    }).populate('assignees', 'name email');
+    if (!task) throw AppError.notFound('Task not found');
 
-    if (!task) {
-      throw AppError.notFound('Task not found');
-    }
-
-    await logActivity({
-      user: req.user._id,
-      board: task.board,
-      action: 'updated',
-      entityType: 'task',
-      entityId: task._id,
-      entityTitle: task.title,
+    logActivity({
+      user: req.user._id, board: task.board,
+      action: 'updated', entityType: 'task',
+      entityId: task._id, entityTitle: task.title
     });
 
     emitTaskUpdated(task.board.toString(), task);
-
-    ApiResponse.success(res, { task });
-  } catch (error) {
-    next(error);
+    send(res, 200, { task });
+  } catch (err) {
+    next(err);
   }
 };
 
 exports.deleteTask = async (req, res, next) => {
   try {
     const task = await Task.findById(req.params.id);
+    if (!task) throw AppError.notFound('Task not found');
 
-    if (!task) {
-      throw AppError.notFound('Task not found');
-    }
-
-    await logActivity({
-      user: req.user._id,
-      board: task.board,
-      action: 'deleted',
-      entityType: 'task',
-      entityId: task._id,
-      entityTitle: task.title,
+    logActivity({
+      user: req.user._id, board: task.board,
+      action: 'deleted', entityType: 'task',
+      entityId: task._id, entityTitle: task.title
     });
 
     const boardId = task.board.toString();
     const listId = task.list.toString();
-
-    await Task.findByIdAndDelete(task._id);
+    await task.deleteOne();
 
     emitTaskDeleted(boardId, task._id, listId);
-
-    ApiResponse.success(res, { message: 'Task deleted successfully' });
-  } catch (error) {
-    next(error);
+    send(res, 200, { message: 'Task deleted' });
+  } catch (err) {
+    next(err);
   }
 };
 
 exports.moveTask = async (req, res, next) => {
   try {
     const { targetListId, position } = req.body;
-    const task = await Task.findById(req.params.id);
 
-    if (!task) {
-      throw AppError.notFound('Task not found');
-    }
+    const task = await Task.findById(req.params.id);
+    if (!task) throw AppError.notFound('Task not found');
+
+    const targetList = await List.findById(targetListId);
+    if (!targetList) throw AppError.notFound('Target list not found');
 
     const oldListId = task.list;
-    const targetList = await List.findById(targetListId);
-
-    if (!targetList) {
-      throw AppError.notFound('Target list not found');
-    }
-
     task.list = targetListId;
     task.position = position;
     await task.save();
 
-    await logActivity({
-      user: req.user._id,
-      board: task.board,
-      action: 'moved',
-      entityType: 'task',
-      entityId: task._id,
-      entityTitle: task.title,
-      details: { fromList: oldListId, toList: targetListId },
+    logActivity({
+      user: req.user._id, board: task.board,
+      action: 'moved', entityType: 'task',
+      entityId: task._id, entityTitle: task.title,
+      details: { fromList: oldListId, toList: targetListId }
     });
 
     await task.populate('assignees', 'name email');
-
     emitTaskMoved(task.board.toString(), task, oldListId.toString(), targetListId);
 
-    ApiResponse.success(res, { task });
-  } catch (error) {
-    next(error);
+    send(res, 200, { task });
+  } catch (err) {
+    next(err);
   }
 };
 
 exports.assignUser = async (req, res, next) => {
   try {
     const { userId } = req.body;
-    const task = await Task.findById(req.params.id);
 
-    if (!task) {
-      throw AppError.notFound('Task not found');
-    }
+    const task = await Task.findById(req.params.id);
+    if (!task) throw AppError.notFound('Task not found');
 
     if (task.assignees.includes(userId)) {
-      throw AppError.conflict('User already assigned');
+      throw AppError.conflict('Already assigned');
     }
 
     task.assignees.push(userId);
     await task.save();
     await task.populate('assignees', 'name email');
 
-    await logActivity({
-      user: req.user._id,
-      board: task.board,
-      action: 'assigned',
-      entityType: 'task',
-      entityId: task._id,
-      entityTitle: task.title,
+    logActivity({
+      user: req.user._id, board: task.board,
+      action: 'assigned', entityType: 'task',
+      entityId: task._id, entityTitle: task.title
     });
 
-    ApiResponse.success(res, { task });
-  } catch (error) {
-    next(error);
+    send(res, 200, { task });
+  } catch (err) {
+    next(err);
   }
 };
 
 exports.unassignUser = async (req, res, next) => {
   try {
     const task = await Task.findById(req.params.id);
-    const userId = req.params.userId;
+    if (!task) throw AppError.notFound('Task not found');
 
-    if (!task) {
-      throw AppError.notFound('Task not found');
-    }
-
-    task.assignees = task.assignees.filter((a) => a.toString() !== userId);
+    task.assignees = task.assignees.filter(a => a.toString() !== req.params.userId);
     await task.save();
     await task.populate('assignees', 'name email');
 
-    await logActivity({
-      user: req.user._id,
-      board: task.board,
-      action: 'unassigned',
-      entityType: 'task',
-      entityId: task._id,
-      entityTitle: task.title,
+    logActivity({
+      user: req.user._id, board: task.board,
+      action: 'unassigned', entityType: 'task',
+      entityId: task._id, entityTitle: task.title
     });
 
-    ApiResponse.success(res, { task });
-  } catch (error) {
-    next(error);
+    send(res, 200, { task });
+  } catch (err) {
+    next(err);
   }
 };

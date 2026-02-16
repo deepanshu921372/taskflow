@@ -8,7 +8,8 @@ import toast from 'react-hot-toast';
 const DashboardPage = () => {
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
-  const { data, isLoading } = useGetBoardsQuery({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const { data, isLoading } = useGetBoardsQuery({ search: searchQuery });
   const [createBoard, { isLoading: creating }] = useCreateBoardMutation();
 
   const handleCreate = async (e) => {
@@ -20,8 +21,8 @@ const DashboardPage = () => {
       setTitle('');
       setShowForm(false);
       toast.success('Board created!');
-    } catch (error) {
-      toast.error(error.data?.error?.message || 'Failed to create board');
+    } catch (err) {
+      toast.error(err.data?.error || 'Failed to create board');
     }
   };
 
@@ -32,7 +33,7 @@ const DashboardPage = () => {
       <Navbar />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">My Boards</h1>
             <p className="text-gray-500 text-sm mt-1">Manage your projects and tasks</p>
@@ -46,6 +47,36 @@ const DashboardPage = () => {
             </svg>
             New Board
           </button>
+        </div>
+
+        <div className="mb-6">
+          <div className="relative max-w-md">
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search boards..."
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
 
         {showForm && (
@@ -88,11 +119,21 @@ const DashboardPage = () => {
           <div className="text-center py-20">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                {searchQuery ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                )}
               </svg>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-1">No boards yet</h3>
-            <p className="text-gray-500 text-sm">Get started by creating your first board</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-1">
+              {searchQuery ? 'No boards found' : 'No boards yet'}
+            </h3>
+            <p className="text-gray-500 text-sm">
+              {searchQuery
+                ? `No boards matching "${searchQuery}"`
+                : 'Get started by creating your first board'}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

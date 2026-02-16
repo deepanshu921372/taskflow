@@ -1,54 +1,39 @@
 import { useEffect, useRef } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { io } from 'socket.io-client';
 import { apiSlice } from '../services/apiSlice';
-import { useDispatch } from 'react-redux';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3008';
 
-const useSocket = (boardId) => {
+export default function useSocket(boardId) {
   const socketRef = useRef(null);
-  const { token } = useSelector((state) => state.auth);
+  const token = useSelector((state) => state.auth.token);
   const dispatch = useDispatch();
 
   useEffect(() => {
     if (!token || !boardId) return;
 
-    socketRef.current = io(SOCKET_URL, {
+    const socket = io(SOCKET_URL, {
       auth: { token },
-      transports: ['websocket', 'polling'],
+      transports: ['websocket', 'polling']
     });
+    socketRef.current = socket;
 
-    const socket = socketRef.current;
+    socket.on('connect', () => socket.emit('join:board', boardId));
 
-    socket.on('connect', () => {
-      console.log('Socket connected');
-      socket.emit('join:board', boardId);
-    });
+    // refetch board data when anything changes
+    const refresh = () => dispatch(apiSlice.util.invalidateTags([{ type: 'Board', id: boardId }]));
 
-    socket.on('disconnect', () => {
-      console.log('Socket disconnected');
-    });
-
-    // Listen for real-time events and invalidate cache
-    const events = [
-      'board:updated',
-      'list:created',
-      'list:updated',
-      'list:deleted',
-      'task:created',
-      'task:updated',
-      'task:moved',
-      'task:deleted',
-      'member:added',
-      'member:removed',
-    ];
-
-    events.forEach((event) => {
-      socket.on(event, () => {
-        dispatch(apiSlice.util.invalidateTags([{ type: 'Board', id: boardId }]));
-      });
-    });
+    socket.on('board:updated', refresh);
+    socket.on('list:created', refresh);
+    socket.on('list:updated', refresh);
+    socket.on('list:deleted', refresh);
+    socket.on('task:created', refresh);
+    socket.on('task:updated', refresh);
+    socket.on('task:moved', refresh);
+    socket.on('task:deleted', refresh);
+    socket.on('member:added', refresh);
+    socket.on('member:removed', refresh);
 
     return () => {
       socket.emit('leave:board', boardId);
@@ -56,7 +41,5 @@ const useSocket = (boardId) => {
     };
   }, [token, boardId, dispatch]);
 
-  return socketRef.current;
-};
-
-export default useSocket;
+  return socketRef;
+}

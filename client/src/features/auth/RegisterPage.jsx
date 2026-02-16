@@ -21,14 +21,13 @@ const RegisterPage = () => {
       dispatch(setCredentials({ user: result.data.user, token: result.data.token }));
       toast.success('Account created!');
       navigate('/');
-    } catch (error) {
-      toast.error(error.data?.error?.message || 'Registration failed');
+    } catch (err) {
+      toast.error(err.data?.error || 'Registration failed');
     }
   };
 
   return (
     <div className="min-h-screen flex">
-      {/* Left side - Visual */}
       <div className="hidden lg:flex flex-1 bg-primary-600 items-center justify-center p-12">
         <div className="max-w-md text-center">
           <div className="w-20 h-20 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
@@ -45,7 +44,6 @@ const RegisterPage = () => {
         </div>
       </div>
 
-      {/* Right side - Form */}
       <div className="flex-1 flex items-center justify-center p-6 sm:p-12">
         <div className="w-full max-w-sm">
           <div className="flex items-center gap-2 mb-8">
